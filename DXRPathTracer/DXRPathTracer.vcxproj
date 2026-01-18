@@ -179,6 +179,9 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </EntryPointName>
     </FxCompile>
+    <None Include="DXRShader_mis.hlsl">
+      <FileType>Document</FileType>
+    </None>
     <None Include="DXRShader1.hlsl">
       <FileType>Document</FileType>
     </None>

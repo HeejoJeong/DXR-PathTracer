@@ -161,7 +161,7 @@ float3 tracePath(in float3 startPos, in float3 startDir, inout uint seed)
 	{
 		
 		TraceRay(scene, 0, ~0, 0, 2, 0, ray, prd);
-
+	
 		radiance += attenuation * prd.radiance;
 		attenuation *= prd.attenuation;
 
@@ -207,7 +207,7 @@ void rayGen()
 	tracerOutBuffer[bufferOffset] = float4(avrRadiance, 1.0f);
 }
 
-void samplingBRDF(out float3 sampleDir, out float sampleProb, out float3 brdfCos, 
+void samplingBRDF(out float3 sampleDir,out float sampleProb, out float3 brdfCos, 
 	in float3 surfaceNormal, in float3 baseDir, in uint materialIdx, inout uint seed)
 {
 	Material mtl = materialBuffer[materialIdx];
@@ -348,6 +348,49 @@ float3 evalBRDF(in float3 shadowRayDir, in float3 surfaceNormal, in float3 baseD
 	return brdfEval;
 }
 
+float evalSamplingProbability(in float3 dir, in float3 surfaceNormal, in float3 baseDir, in uint materialIdx) {
+	Material mtl = materialBuffer[materialIdx];
+
+	uint reflectType = mtl.type;
+
+	float3 I = dir, N = surfaceNormal;
+	float IN = dot(I, N);
+	if (reflectType == Lambertian)
+		return InvPi * IN;
+
+	float3 O = baseDir;
+	float3 H = normalize(I + O);
+
+	float ON = dot(O, N), HN = dot(N, H), OH = dot(O, H);
+
+	float alpha2 = mtl.roughness * mtl.roughness;
+
+	float sampleProb;
+
+	if (reflectType == Metal) {
+
+		if (IN < 0) {
+			sampleProb = 0.0f;
+		}
+		else{
+			float D = TrowbridgeReitz(HN * HN, alpha2);
+			sampleProb = D * HN / (4 * OH);
+		}
+	}
+	else if (reflectType == Plastic) {
+		float r = mtl.reflectivity;
+
+		if (IN < 0)
+			sampleProb = 0.0f;
+		else {
+			float D = TrowbridgeReitz(HN * HN, alpha2);
+			sampleProb = r * D * HN / (4 * OH) + (1-r) * InvPi * IN;
+		}
+	}
+
+	return sampleProb;
+}
+
 void selectLight(out uint cidx, out float lightSelectionProb, inout float xi) {
 
 	GPUSceneObject obj = objectBuffer[objIdx];
@@ -445,14 +488,12 @@ void sampleLightPoint(out float3 samplePoint, out float3 lightNormal, in float x
 
 }
 
-float3 evalDirectLight(in float3 surfaceNormal, in float3 baseDir, in uint materialIdx, inout RayPayload payload)
-{
+void evalDirectLight(out float3 mis_radiance_dir, in float3 surfaceNormal, in float3 baseDir, in uint materialIdx, inout RayPayload payload){
 	float xi1 = rnd(payload.seed), xi2 = rnd(payload.seed);
 
 	uint cidx;
 	float lightSelectionProb;
 	selectLight(cidx, lightSelectionProb, xi1);
-
 
 	StaticEmissiveTriangle light = staticLightBuffer[cidx];
 	float3 Le = light.emittance;
@@ -470,8 +511,11 @@ float3 evalDirectLight(in float3 surfaceNormal, in float3 baseDir, in uint mater
 	float cos1 = dot(surfaceNormal, shadowRayDir);
 	float cos2 = dot(lightNormal, -shadowRayDir);
 
-	if (cos1 <= 0.0f || cos2 <= 0.0f)
-		return 0.0f;
+
+	if (cos1 <= 0.0f || cos2 <= 0.0f) {
+		mis_radiance_dir = float3(0.0f, 0.0f, 0.0f);
+		return;
+	}
 
 	float dist = distance(lightPoint, shadowRayOrigin);
 	float tmax = dist - rayTmin;
@@ -480,15 +524,27 @@ float3 evalDirectLight(in float3 surfaceNormal, in float3 baseDir, in uint mater
 	RayDesc sray = Ray(shadowRayOrigin, shadowRayDir, rayTmin, tmax);
 	TraceRay(scene, 0, ~0, 1, 2, 1, sray, sprd);
 
-	if (sprd.occluded)
-		return 0.0f;
 
 	float3 brdf = evalBRDF(shadowRayDir, surfaceNormal, baseDir, materialIdx);
 
 	float areaSampleProb = lightSelectionProb / light.area;
 
 
-	return brdf * Le * cos1 * cos2 / (dist * dist * areaSampleProb);	// visibility = 1;
+	if (sprd.occluded) {
+		mis_radiance_dir = float3(0.0f, 0.0f, 0.0f);
+	}
+	else{
+		float powerHeuristic = 1.0f;
+
+		if(payload.rayDepth < maxPathLength - 1){
+			float p_light_lightSample = (dist * dist * areaSampleProb) / cos2 ;
+			float p_brdf_lightSample = evalSamplingProbability(shadowRayDir, surfaceNormal, baseDir, materialIdx);
+			powerHeuristic = p_light_lightSample * p_light_lightSample / (p_light_lightSample * p_light_lightSample + p_brdf_lightSample * p_brdf_lightSample);
+		}
+
+		mis_radiance_dir = powerHeuristic * brdf * Le * cos1 * cos2 / (dist * dist * areaSampleProb);	// visibility = 1;
+	}
+
 }
 
 
@@ -515,6 +571,10 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 
 	payload.radiance = 0.0f;
 	payload.attenuation = 1.0f;
+
+	float3 hitPos_prev;
+	if (payload.rayDepth > 0)
+		hitPos_prev = payload.hitPos;
 	payload.hitPos = WorldRayOrigin() - RayTCurrent() * E;
 
 	uint mtlIdx = obj.materialIdx;
@@ -533,26 +593,53 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 		return;
 	}
 	
+
 	Material mtl = materialBuffer[mtlIdx];
 
-	if (any(mtl.emittance) && (payload.rayDepth == 0 || payload.prevBrdfProb < 0.0f) )
+	if (any(mtl.emittance) && (payload.rayDepth == 0 || payload.prevBrdfProb < 0))
 	{
 		// primary ray hit or or hit reached via a delta BSDF (i.e. Glass Material)
 		payload.radiance += mtl.emittance;
 	}
+	else if (any(mtl.emittance) && payload.rayDepth > 0 && payload.prevBrdfProb >=0 && EfN > 0) {
+
+		// payload.rayDepth > 0 : emission term deferred for MIS
+		// payload.prevBrdfProb >=0 : valid BRDF pdf (not perfect specular / transmission)
+
+		uint lightIdx = obj.cdfOffset + PrimitiveIndex();
+
+		StaticEmissiveTriangle light = staticLightBuffer[lightIdx];
+
+		float selectLightProb = (lightIdx > 0) ? cdfBuff[lightIdx] - cdfBuff[lightIdx - 1] : cdfBuff[lightIdx]; //Currently, cdfBuff is not normalized
+		selectLightProb /= cdfBuff[numEmissiveTriangles - 1];		
+		float areaSampleProb = selectLightProb / light.area;
+
+		float dist = distance(hitPos_prev, payload.hitPos);
+
+		float sampleProb_Light = areaSampleProb * dist * dist / EfN;
+
+		float sampleProb_brdf = payload.prevBrdfProb;
+		float powerHeuristic = sampleProb_brdf * sampleProb_brdf / (sampleProb_brdf * sampleProb_brdf + sampleProb_Light * sampleProb_Light);
+		
+		payload.radiance += powerHeuristic * mtl.emittance;
+	}
 
 	float3 sampleDir, brdfCos;
-	float sampleProb;
-	samplingBRDF(sampleDir, sampleProb, brdfCos, N, E, mtlIdx, payload.seed);
+	float p_brdf_brdfSample;
+	samplingBRDF(sampleDir, p_brdf_brdfSample, brdfCos, N, E, mtlIdx, payload.seed);
 	
 	if(dot(sampleDir, N) <= 0)
 		payload.rayDepth = maxPathLength;
 	//payload.terminateRay = dot(sampleDir, N) <= 0.0f
-	payload.attenuation = brdfCos / sampleProb;
+	payload.attenuation = brdfCos / p_brdf_brdfSample;
 	payload.bounceDir = sampleDir;
-	payload.prevBrdfProb = sampleProb;
+	payload.prevBrdfProb = p_brdf_brdfSample;
 
-	payload.radiance += evalDirectLight(N, E, mtlIdx, payload);
+	float3 radiance_directLight;
+	float p_light_brdfSample;
+	evalDirectLight(radiance_directLight, N, E, mtlIdx, payload);				
+
+	payload.radiance += radiance_directLight;
 
 }
 
@@ -567,6 +654,10 @@ void closestHitGlass(inout RayPayload payload, in BuiltInTriangleIntersectionAtt
 
 	payload.radiance = 0.0f;
 	payload.attenuation = 1.0f;
+
+	float3 hitPos_prev;
+	if (payload.rayDepth > 0)
+		hitPos_prev = payload.hitPos;
 	payload.hitPos = WorldRayOrigin() - RayTCurrent() * E;
 
 	if(EN * EfN < 0)
@@ -651,7 +742,7 @@ void closestHitGlass(inout RayPayload payload, in BuiltInTriangleIntersectionAtt
 	payload.attenuation = Fresnel / sampleProb;
 	payload.bounceDir = sampleDir;
 
-	payload.prevBrdfProb = -1.0f;
+	payload.prevBrdfProb = -1.0f;	// Dirac-delta distribution.
 }
 
 [shader("closesthit")]

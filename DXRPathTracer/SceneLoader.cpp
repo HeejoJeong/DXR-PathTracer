@@ -171,6 +171,88 @@ Scene* SceneLoader::push_testScene1()
 }
 
 
+Scene* SceneLoader::push_testScene3()
+{
+	Scene* scene = new Scene;
+	sceneArr.push_back(scene);
+
+	Mesh groundM = generateRectangleMesh(float3(0.0, -0.4, 0.0), float3(40.0, 0.0, 40.0), FaceDir::up);
+	Mesh tableM = generateBoxMesh(float3(-5.0, -0.38, -4.0), float3(5.0, -0.01, 3.0));
+	Mesh sphereM = generateSphereMesh(float3(0, 1, 0), 1.0f);
+	Mesh ringM = loadMeshFromOBJFile("../data/mesh/ring.obj", true);
+	Mesh golfBallM = loadMeshFromOBJFile("../data/mesh/golfball.obj", true);
+	Mesh puzzleM = loadMeshFromOBJFile("../data/mesh/burrPuzzle.obj", true);
+	initializeGeometryFromMeshes(scene, { &groundM, &tableM, &sphereM, &ringM, &golfBallM, &puzzleM });
+
+	enum SceneObjectId {
+		ground, table, light, glass, metal, pingpong, bouncy, numObjs
+	};
+	enum MaterialId {
+		groundMtl, tableMtl, lightMtl, glassMtl, metalMtl, pingpongMtl, bouncyMtl, numMtls
+	};
+
+	Array<SceneObject> objArr(numObjs, scene->objArr[2]);
+	objArr[ground] = scene->objArr[0];
+	objArr[table] = scene->objArr[1];
+
+	objArr[light].scale = 2.0f;
+	objArr[light].translation = float3(-20, 17, 0);
+
+	objArr[ground].translation = float3(0.0, -0.04, 0.0);
+	objArr[table].translation = float3(0.0, -0.02, 0.0);
+	objArr[glass].translation = float3(3.5, 0.0, 0.0);
+	objArr[metal].translation = float3(-3.5, 0.0, 0.0);
+	objArr[pingpong].translation = float3(-1.5, 0.0, 1.1);
+	objArr[bouncy].translation = float3(-2.0, 0.0, -1.1);
+
+	objArr[ground].scale = 1.0f;
+	objArr[table].scale = 1.0f;
+	objArr[glass].scale = 0.55f;
+	objArr[metal].scale = 0.6f;
+	objArr[pingpong].scale = 0.45f;
+	objArr[bouncy].scale = 0.25f;
+
+
+	objArr.swap(scene->objArr);
+
+
+	Array<Material>& mtlArr = scene->mtlArr;
+	mtlArr.resize(numMtls);
+	mtlArr[groundMtl].albedo = float3(0.75, 0.6585, 0.5582);
+	mtlArr[tableMtl].albedo = float3(0.87, 0.7785, 0.6782);
+	mtlArr[lightMtl].albedo = float3(0);
+	mtlArr[glassMtl].albedo = float3(0);
+	mtlArr[metalMtl].albedo = float3(0.3);
+	//mtlArr[pingpongMtl].albedo = float3(0.93, 0.89, 0.85);
+	mtlArr[pingpongMtl].albedo = float3(0.4, 0.2, 0.2);
+	mtlArr[bouncyMtl].albedo = float3(0.9828262, 0.180144, 0.0780565);
+
+
+	mtlArr[lightMtl].emittance = float3(200.0f);
+	mtlArr[bouncyMtl].emittance = 10.0f * float3(0.9828262, 0.180144, 0.0780565);
+
+	mtlArr[pingpongMtl].type = Metal;
+	mtlArr[pingpongMtl].roughness = 0.2f;
+
+	mtlArr[metalMtl].type = Metal;
+	mtlArr[metalMtl].roughness = 0.003f;
+
+	mtlArr[glassMtl].type = Glass;
+	mtlArr[glassMtl].transmittivity = 0.96f;
+
+
+	for (uint i = 0; i < numMtls; ++i)
+		scene->objArr[i].materialIdx = i;
+
+
+	computeModelMatrices(scene);
+
+	setupStaticLightBuffer(scene);
+
+	return scene;
+}
+
+
 Scene* SceneLoader::push_hyperionTestScene()
 {
 	Scene* scene = new Scene;
@@ -260,16 +342,17 @@ Scene* SceneLoader::push_hyperionTestScene()
 	mtlArr[ringMtl].albedo = float3(0.95, 0.93, 0.88);
 
 
-	mtlArr[lightMtl].emittance = float3(200.0f);
-	//mtlArr[woodMtl    ].emittance = 5.0f * float3(0.3992, 0.21951971, 0.10871);
-	//mtlArr[woodMtl    ].albedo = float3(1);
-	mtlArr[bouncyMtl].emittance = 10.0f * float3(0.9828262, 0.180144, 0.0780565);
-	mtlArr[marble1Mtl].emittance = 10.0f * float3(0.276, 0.344, 0.2233);
-	mtlArr[marble2Mtl].emittance = 10.0f * float3(0.2549, 0.3537, 0.11926);
+	//mtlArr[lightMtl].emittance = float3(200.0f);
+	//mtlArr[bouncyMtl].emittance = 10.0f * float3(0.9828262, 0.180144, 0.0780565);
+	//mtlArr[marble1Mtl].emittance = 10.0f * float3(0.276, 0.344, 0.2233);
+	//mtlArr[marble2Mtl].emittance = 10.0f * float3(0.2549, 0.3537, 0.11926);
 
-	/*scene->objArr[marble2 ].scale = 0.1f;
+	//mtlArr[woodMtl].emittance = 5.0f * float3(0.3992, 0.21951971, 0.10871);
+	//mtlArr[woodMtl].albedo = float3(1);
+
+	scene->objArr[marble2 ].scale = 0.1f;
 	scene->objArr[marble2 ].translation = float3(3.2, 0.7, 0.0);
-	mtlArr[marble2Mtl ].emittance = float3(100.0f);*/
+	mtlArr[marble2Mtl ].emittance = float3(100.0f);
 
 	mtlArr[pingpongMtl].type = Metal;
 	mtlArr[pingpongMtl].roughness = 0.2f;
@@ -308,8 +391,153 @@ Scene* SceneLoader::push_hyperionTestScene()
 	return scene;
 }
 
+
+
+
+Scene* SceneLoader::push_hyperionTestScene2()
+{
+	Scene* scene = new Scene;
+	sceneArr.push_back(scene);
+
+	Mesh groundM = generateRectangleMesh(float3(0.0, -0.4, 0.0), float3(40.0, 0.0, 40.0), FaceDir::up);
+	Mesh tableM = generateBoxMesh(float3(-5.0, -0.38, -4.0), float3(5.0, -0.01, 3.0));
+	Mesh sphereM = generateSphereMesh(float3(0, 1, 0), 1.0f);
+	Mesh ringM = loadMeshFromOBJFile("../data/mesh/ring.obj", true);
+	Mesh golfBallM = loadMeshFromOBJFile("../data/mesh/golfball.obj", true);
+	Mesh puzzleM = loadMeshFromOBJFile("../data/mesh/burrPuzzle.obj", true);
+	initializeGeometryFromMeshes(scene, { &groundM, &tableM, &sphereM, &ringM, &golfBallM, &puzzleM });
+
+	enum SceneObjectId {
+		ground, table, light, metal, pingpong, bouncy, orange, wood, golfball, marble1,
+		marble2, ring1, ring2, ring3, numObjs
+	};
+	enum MaterialId {
+		groundMtl, tableMtl, lightMtl, metalMtl, pingpongMtl, bouncyMtl, orangeMtl, woodMtl, golfballMtl, marble1Mtl,
+		marble2Mtl, ringMtl, numMtls
+	};
+
+	Array<SceneObject> objArr(numObjs, scene->objArr[2]);
+	objArr[ground] = scene->objArr[0];
+	objArr[table] = scene->objArr[1];
+	objArr[ring1] = scene->objArr[3];
+	objArr[ring2] = scene->objArr[3];
+	objArr[ring3] = scene->objArr[3];
+	objArr[golfball] = scene->objArr[4];
+	objArr[wood] = scene->objArr[5];
+
+	objArr[light].scale = 1.0f;
+	objArr[light].translation = float3(0, 0.7, 0.0);
+
+	objArr[ground].translation = float3(0.0, -0.04, 0.0);
+	objArr[table].translation = float3(0.0, -0.02, 0.0);
+	objArr[metal].translation = float3(-3.5, 0.0, 0.0);
+	objArr[pingpong].translation = float3(-1.5, 0.0, 1.1);
+	objArr[bouncy].translation = float3(-2.0, 0.0, -1.1);
+	objArr[orange].translation = float3(2.0, 0.0, -1.1);
+	objArr[marble1].translation = float3(-0.5, 0.0, 2.0);
+	objArr[marble2].translation = float3(0.5, 0.0, 2.0);
+	objArr[ring1].translation = float3(0.0, -0.02, 0.0);
+	objArr[ring2].translation = float3(0.6, -0.02, 0.3);
+	objArr[ring3].translation = float3(-1.3, -0.02, -0.3);
+
+	objArr[ground].scale = 1.0f;
+	objArr[table].scale = 1.0f;
+	objArr[metal].scale = 0.6f;
+	objArr[pingpong].scale = 0.45f;
+	objArr[bouncy].scale = 0.25f;
+	objArr[orange].scale = 0.5f;
+	objArr[marble1].scale = 0.1f;
+	objArr[marble2].scale = 0.15f;
+	objArr[ring1].scale = 0.005f;
+	objArr[ring2].scale = 0.005f;
+	objArr[ring3].scale = 0.005f;
+
+	objArr[golfball].translation = float3(-12.3, -13.1, -140.0);
+	objArr[golfball].scale = 0.25f;
+
+	// burrPuzzle.obj
+	objArr[wood].translation = float3(-0.2, 100.0, -2.3);
+	objArr[wood].rotation = getRotationAsQuternion({ 0,1,0 }, 30.0f);
+	objArr[wood].scale = 20.0f;
+
+	objArr.swap(scene->objArr);
+
+
+	Array<Material>& mtlArr = scene->mtlArr;
+	mtlArr.resize(numMtls);
+	mtlArr[groundMtl].albedo = float3(0.75, 0.6585, 0.5582);
+	mtlArr[tableMtl].albedo = float3(0.87, 0.7785, 0.6782);
+	mtlArr[lightMtl].albedo = float3(0);
+	mtlArr[metalMtl].albedo = float3(0.3);
+	//mtlArr[pingpongMtl].albedo = float3(0.93, 0.89, 0.85);
+	mtlArr[pingpongMtl].albedo = float3(0.4, 0.2, 0.2);
+	mtlArr[bouncyMtl].albedo = float3(0.9828262, 0.180144, 0.0780565);
+	mtlArr[orangeMtl].albedo = float3(0.7175, 0.17, 0.005);
+	mtlArr[woodMtl].albedo = float3(0.3992, 0.21951971, 0.10871);
+	mtlArr[golfballMtl].albedo = float3(0.9, 0.87, 0.95);
+	mtlArr[marble1Mtl].albedo = float3(0.276, 0.344, 0.2233);
+	mtlArr[marble2Mtl].albedo = float3(0.2549, 0.3537, 0.11926);
+	mtlArr[ringMtl].albedo = float3(0.95, 0.93, 0.88);
+
+
+	mtlArr[lightMtl].emittance = float3(5.0f);
+	//mtlArr[bouncyMtl].emittance = 10.0f * float3(0.9828262, 0.180144, 0.0780565);
+	//mtlArr[marble1Mtl].emittance = 10.0f * float3(0.276, 0.344, 0.2233);
+	//mtlArr[marble2Mtl].emittance = 10.0f * float3(0.2549, 0.3537, 0.11926);
+
+	//mtlArr[woodMtl].emittance = 5.0f * float3(0.3992, 0.21951971, 0.10871);
+	//mtlArr[woodMtl].albedo = float3(1);
+
+	//scene->objArr[marble2 ].scale = 0.1f;
+	//scene->objArr[marble2 ].translation = float3(3.2, 0.7, 0.0);
+	//mtlArr[marble2Mtl ].emittance = float3(100.0f);
+
+	mtlArr[pingpongMtl].type = Metal;
+	mtlArr[pingpongMtl].roughness = 0.2f;
+
+	mtlArr[metalMtl].type = Metal;
+	mtlArr[metalMtl].roughness = 0.003f;
+	mtlArr[ringMtl].type = Metal;
+	mtlArr[ringMtl].roughness = 0.02f;
+
+	mtlArr[orangeMtl].type = Plastic;
+	mtlArr[orangeMtl].roughness = 0.01f;
+	mtlArr[orangeMtl].reflectivity = 0.1f;
+
+	mtlArr[woodMtl].type = Plastic;
+	mtlArr[woodMtl].roughness = 0.3f;
+	mtlArr[woodMtl].reflectivity = 0.1f;
+
+	mtlArr[golfballMtl].type = Plastic;
+	mtlArr[golfballMtl].reflectivity = 0.1f;
+	mtlArr[golfballMtl].roughness = 0.05f;
+
+
+	for (uint i = 0; i < ringMtl; ++i)
+		scene->objArr[i].materialIdx = i;
+	scene->objArr[ring1].materialIdx = ringMtl;
+	scene->objArr[ring2].materialIdx = ringMtl;
+	scene->objArr[ring3].materialIdx = ringMtl;
+
+	computeModelMatrices(scene);
+
+	setupStaticLightBuffer(scene);
+
+	return scene;
+}
+
 Scene* SceneLoader::push_testScene2()
 {
+	// NOTE:
+	// In this scene, illumination is dominated by self-emissive surfaces.
+	// Using Next Event Estimation (direct light sampling) is ineffective here:
+	// most light samples are rejected by the visibility term, and the few
+	// surviving samples have very low probability but large contribution,
+	// leading to high variance (fireflies).
+	//
+	// Pure BRDF/path tracing performs better in this case because emission and
+	// reflection are naturally coupled on the same surface.
+
 	Scene* scene = new Scene;
 	sceneArr.push_back(scene);
 
@@ -331,8 +559,10 @@ Scene* SceneLoader::push_testScene2()
 	objArr[table] = scene->objArr[1];
 	objArr[wood] = scene->objArr[3];
 
-	objArr[light].scale = 2.0f;
-	objArr[light].translation = float3(-20, 17, 0);
+	objArr[light].scale = 1.0f;
+	//objArr[light].translation = float3(0, 1, 0);
+	objArr[light].translation = float3(0, 1000, 0);
+
 
 	objArr[ground].translation = float3(0.0, -0.04, 0.0);
 	objArr[table].translation = float3(0.0, -0.02, 0.0);
@@ -342,6 +572,7 @@ Scene* SceneLoader::push_testScene2()
 
 	// burrPuzzle.obj
 	objArr[wood].translation = float3(-0.2, 1.0, -2.3);
+	//objArr[wood].translation = float3(-0.2, 10000.0, -2.3);
 	objArr[wood].rotation = getRotationAsQuternion({ 0,1,0 }, 30.0f);
 	objArr[wood].scale = 20.0f;
 
@@ -353,9 +584,10 @@ Scene* SceneLoader::push_testScene2()
 	mtlArr[groundMtl].albedo = float3(0.75, 0.6585, 0.5582);
 	mtlArr[tableMtl].albedo = float3(0.87, 0.7785, 0.6782);
 	mtlArr[lightMtl].albedo = float3(0);
-	mtlArr[woodMtl].albedo = float3(0.3992, 0.21951971, 0.10871);
+	mtlArr[woodMtl].albedo = float3(1);
 
-	mtlArr[lightMtl].emittance = float3(200.0f);
+	mtlArr[woodMtl].emittance = 5.0f * float3(0.3992, 0.21951971, 0.10871);
+	//mtlArr[lightMtl].emittance = float3(20.0f);
 
 	mtlArr[woodMtl].type = Plastic;
 	mtlArr[woodMtl].roughness = 0.3f;

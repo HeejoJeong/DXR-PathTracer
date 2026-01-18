@@ -29,8 +29,9 @@ int main()
 
 	SceneLoader sceneLoader;
 	//Scene* scene = sceneLoader.push_testScene1();
-	//Scene* scene = sceneLoader.push_testScene2();
+	Scene* scene = sceneLoader.push_testScene2();
 	Scene* scene = sceneLoader.push_hyperionTestScene();
+	//Scene* scene = sceneLoader.push_hyperionTestScene2();
 	tracer->setupScene(scene);
 	
 	double fps, old_fps = 0;
@@ -134,6 +135,8 @@ void exportIMG(uint frame, const TracedResult& trResult) {
 					firstVal = p;
 				}
 				++nanInfCount;
+
+				printf("Nan/Inf: (%u,%u)\n", x, y);
 			}
 		}
 	}
@@ -177,13 +180,20 @@ void exportIMG(uint frame, const TracedResult& trResult) {
 	float gamma = 2.2f;
 
 	Array<unsigned char> ldr(width * height * 4);
+	
+	//auto toByte = [&](float v)
+	//	{
+	//		v = min(max(v, 0.0f), 1.0f);
+	//		return static_cast<unsigned char>(min(v, 1.0f) * 255.0f + 0.5f);
+	//	};
 
 	auto toByte = [&](float v)
 		{
 			v *= exposure;
-			v = max(0.0f, v);
+			v = v / (1.0f + v);
 			v = powf(v, 1.0f / gamma);
-			return (unsigned char)(min(v, 1.0f) * 255.0f + 0.5f);
+			v = min(max(v, 0.0f), 1.0f);
+			return static_cast<unsigned char>(v * 255.0f + 0.5f);
 		};
 
 	for (int y = 0; y < height; ++y)
@@ -198,7 +208,7 @@ void exportIMG(uint frame, const TracedResult& trResult) {
 			ldr[o + 0] = toByte(p.x);
 			ldr[o + 1] = toByte(p.y);
 			ldr[o + 2] = toByte(p.z);
-			ldr[o + 3] = 255; // alpha
+			ldr[o + 3] = 255;
 		}
 	}
 

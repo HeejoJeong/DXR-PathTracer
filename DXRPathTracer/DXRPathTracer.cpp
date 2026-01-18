@@ -112,35 +112,40 @@ void DXRPathTracer::declareRootSignatures()
 
 void DXRPathTracer::buildRaytracingPipeline()
 {
+
 	//dxrLib.load(L"DXRShader1.cso");
 	//mNumRayTypes = 1;
 	//mRtPipeline.setDXRLib(&dxrLib);
 	//mRtPipeline.setGlobalRootSignature(&mGlobalRS);
 	//mRtPipeline.addHitGroup(HitGroup(L"hitGp", L"closestHit", nullptr));
 	//mRtPipeline.addHitGroup(HitGroup(L"hitGpGlass", L"closestHitGlass", nullptr));
-	//mRtPipeline.addLocalRootSignature(LocalRootSignature(&mHitGroupRS, { L"hitGp", L"hitGpGlass" }));// L"hitGpShadow"
+	//mRtPipeline.addLocalRootSignature(LocalRootSignature(&mHitGroupRS, { L"hitGp", L"hitGpGlass" }));
 	//mRtPipeline.setMaxPayloadSize(sizeof(float) * 20);
 	//mRtPipeline.setMaxRayDepth(2);
 	//mRtPipeline.build();
 
-	dxrLib.load(L"DXRShader_nee.cso");
-	mNumRayTypes = 2;
+	//dxrLib.load(L"DXRShader_nee.cso");
+	dxrLib.load(L"DXRShader_mis.cso");
+	mNumRayTypes = 2;	
 	mRtPipeline.setDXRLib(&dxrLib);
 	mRtPipeline.setGlobalRootSignature(&mGlobalRS);
 	mRtPipeline.addHitGroup(HitGroup(L"hitGp", L"closestHit", nullptr));
 	mRtPipeline.addHitGroup(HitGroup(L"hitGpGlass", L"closestHitGlass", nullptr));
 	mRtPipeline.addHitGroup(HitGroup(L"hitGpShadow", L"closestHitShadow", nullptr));
-	mRtPipeline.addLocalRootSignature(LocalRootSignature(&mHitGroupRS, { L"hitGp", L"hitGpGlass" }));// L"hitGpShadow"
+	mRtPipeline.addLocalRootSignature(LocalRootSignature(&mHitGroupRS, { L"hitGp", L"hitGpGlass" }));
 	mRtPipeline.setMaxPayloadSize(sizeof(float) *20);
 	mRtPipeline.setMaxRayDepth(2);
 	mRtPipeline.build();
+
 }
 
 void DXRPathTracer::initializeApplication()
 {
 	camera.setFovY(60.0f);
 	camera.setScreenSize((float) tracerOutW, (float) tracerOutH);
-	camera.initOrbit(float3(0.0f, 1.5f, 0.0f), 10.0f, 0.0f, 0.0f);
+	//camera.initOrbit(float3(0.0f, 1.5f, 0.0f), 10.0f, 0.0f, 0.0f);
+	camera.initOrbit(float3(0.0f, 1.5f, 0.0f), 6.0f, 0.0f, 0.4);
+	//camera.initOrbit(float3(0.0f, 1.5f, 0.0f), 10.0f, 0.20f, 0.05);
 
 	mGlobalConstants.rayTmin = 0.001f;  // 1mm
 	mGlobalConstants.accumulatedFrames = 0;

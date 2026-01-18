@@ -135,6 +135,9 @@
     <None Include="DXRShader1.hlsl">
       <Filter>소스 파일\DXRPathTracer\HLSL</Filter>
     </None>
+    <None Include="DXRShader_mis.hlsl">
+      <Filter>소스 파일\DXRPathTracer\HLSL</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DXRShader.hlsl">
