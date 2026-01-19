@@ -534,14 +534,10 @@ void evalDirectLight(out float3 mis_radiance_dir, in float3 surfaceNormal, in fl
 		mis_radiance_dir = float3(0.0f, 0.0f, 0.0f);
 	}
 	else{
-		float powerHeuristic = 1.0f;
 
-		if(payload.rayDepth < maxPathLength - 1){
-			float p_light_lightSample = (dist * dist * areaSampleProb) / cos2 ;
-			float p_brdf_lightSample = evalSamplingProbability(shadowRayDir, surfaceNormal, baseDir, materialIdx);
-			powerHeuristic = p_light_lightSample * p_light_lightSample / (p_light_lightSample * p_light_lightSample + p_brdf_lightSample * p_brdf_lightSample);
-		}
-
+		float p_light_lightSample = (dist * dist * areaSampleProb) / cos2 ;
+		float p_brdf_lightSample = evalSamplingProbability(shadowRayDir, surfaceNormal, baseDir, materialIdx);
+		float powerHeuristic = p_light_lightSample * p_light_lightSample / (p_light_lightSample * p_light_lightSample + p_brdf_lightSample * p_brdf_lightSample);
 		mis_radiance_dir = powerHeuristic * brdf * Le * cos1 * cos2 / (dist * dist * areaSampleProb);	// visibility = 1;
 	}
 
@@ -624,23 +620,24 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 		payload.radiance += powerHeuristic * mtl.emittance;
 	}
 
-	float3 sampleDir, brdfCos;
-	float p_brdf_brdfSample;
-	samplingBRDF(sampleDir, p_brdf_brdfSample, brdfCos, N, E, mtlIdx, payload.seed);
+	if (payload.rayDepth < maxPathLength - 1) {		//path end
+
+		float3 sampleDir, brdfCos;
+		float p_brdf_brdfSample;
+		samplingBRDF(sampleDir, p_brdf_brdfSample, brdfCos, N, E, mtlIdx, payload.seed);
 	
-	if(dot(sampleDir, N) <= 0)
-		payload.rayDepth = maxPathLength;
-	//payload.terminateRay = dot(sampleDir, N) <= 0.0f
-	payload.attenuation = brdfCos / p_brdf_brdfSample;
-	payload.bounceDir = sampleDir;
-	payload.prevBrdfProb = p_brdf_brdfSample;
+		if(dot(sampleDir, N) <= 0)
+			payload.rayDepth = maxPathLength;
+		//payload.terminateRay = dot(sampleDir, N) <= 0.0f
+		payload.attenuation = brdfCos / p_brdf_brdfSample;
+		payload.bounceDir = sampleDir;
+		payload.prevBrdfProb = p_brdf_brdfSample;
 
-	float3 radiance_directLight;
-	float p_light_brdfSample;
-	evalDirectLight(radiance_directLight, N, E, mtlIdx, payload);				
-
-	payload.radiance += radiance_directLight;
-
+		float3 radiance_directLight;
+		float p_light_brdfSample;
+		evalDirectLight(radiance_directLight, N, E, mtlIdx, payload);				
+		payload.radiance += radiance_directLight;
+	}
 }
 
 [shader("closesthit")]

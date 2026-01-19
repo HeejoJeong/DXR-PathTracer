@@ -29,9 +29,8 @@ int main()
 
 	SceneLoader sceneLoader;
 	//Scene* scene = sceneLoader.push_testScene1();
-	Scene* scene = sceneLoader.push_testScene2();
+	//Scene* scene = sceneLoader.push_testScene2();
 	Scene* scene = sceneLoader.push_hyperionTestScene();
-	//Scene* scene = sceneLoader.push_hyperionTestScene2();
 	tracer->setupScene(scene);
 	
 	double fps, old_fps = 0;

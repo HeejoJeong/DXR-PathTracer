@@ -540,20 +540,21 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 		// primary ray hit or or hit reached via a delta BSDF (i.e. Glass Material)
 		payload.radiance += mtl.emittance;
 	}
+	if (payload.rayDepth < maxPathLength - 1) {		//path end
 
-	float3 sampleDir, brdfCos;
-	float sampleProb;
-	samplingBRDF(sampleDir, sampleProb, brdfCos, N, E, mtlIdx, payload.seed);
-	
-	if(dot(sampleDir, N) <= 0)
-		payload.rayDepth = maxPathLength;
-	//payload.terminateRay = dot(sampleDir, N) <= 0.0f
-	payload.attenuation = brdfCos / sampleProb;
-	payload.bounceDir = sampleDir;
-	payload.prevBrdfProb = sampleProb;
+		float3 sampleDir, brdfCos;
+		float sampleProb;
+		samplingBRDF(sampleDir, sampleProb, brdfCos, N, E, mtlIdx, payload.seed);
 
-	payload.radiance += evalDirectLight(N, E, mtlIdx, payload);
+		if (dot(sampleDir, N) <= 0)
+			payload.rayDepth = maxPathLength;
+		//payload.terminateRay = dot(sampleDir, N) <= 0.0f
+		payload.attenuation = brdfCos / sampleProb;
+		payload.bounceDir = sampleDir;
+		payload.prevBrdfProb = sampleProb;
 
+		payload.radiance += evalDirectLight(N, E, mtlIdx, payload);
+	}
 }
 
 [shader("closesthit")]

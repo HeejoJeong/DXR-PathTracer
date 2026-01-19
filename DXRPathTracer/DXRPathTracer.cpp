@@ -145,7 +145,6 @@ void DXRPathTracer::initializeApplication()
 	camera.setScreenSize((float) tracerOutW, (float) tracerOutH);
 	//camera.initOrbit(float3(0.0f, 1.5f, 0.0f), 10.0f, 0.0f, 0.0f);
 	camera.initOrbit(float3(0.0f, 1.5f, 0.0f), 6.0f, 0.0f, 0.4);
-	//camera.initOrbit(float3(0.0f, 1.5f, 0.0f), 10.0f, 0.20f, 0.05);
 
 	mGlobalConstants.rayTmin = 0.001f;  // 1mm
 	mGlobalConstants.accumulatedFrames = 0;
